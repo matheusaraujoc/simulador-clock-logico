@@ -1,0 +1,1848 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cronômetro Distribuído — Simulador do Algoritmo de Berkeley</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --ink: #08101a;
+            --ink-2: #0c1623;
+            --panel: #0f1a2a;
+            --panel-2: #152234;
+            --line: #1f3148;
+            --line-strong: #2f4a6b;
+            --cream: #e8f1ff;
+            --cream-dim: #c5d4e8;
+            --muted: #6a82a0;
+            --muted-2: #4d6280;
+            --amber: #4dd0e1;
+            --amber-glow: rgba(77, 208, 225, 0.18);
+            --sage: #6ee7b7;
+            --rust: #f87171;
+            --grid: rgba(232, 241, 255, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--ink);
+            color: var(--cream);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-feature-settings: "cv11", "ss01", "ss03";
+        }
+
+        body {
+            min-height: 100vh;
+            background:
+                radial-gradient(ellipse at top, rgba(77, 208, 225, 0.06), transparent 60%),
+                radial-gradient(ellipse at bottom right, rgba(110, 231, 183, 0.04), transparent 50%),
+                var(--ink);
+            background-attachment: fixed;
+            position: relative;
+        }
+
+        /* Grid background overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(var(--grid) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.6;
+        }
+
+        .wrap {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 56px 32px 96px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ========== HEADER ========== */
+        .masthead {
+            border-top: 1px solid var(--line);
+            border-bottom: 1px solid var(--line);
+            padding: 28px 0 24px;
+            margin-bottom: 48px;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 28px;
+            align-items: center;
+        }
+
+        .crest {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .crest-mark {
+            width: 44px;
+            height: 44px;
+            border: 1px solid var(--amber);
+            border-radius: 50%;
+            position: relative;
+            display: grid;
+            place-items: center;
+            background: radial-gradient(circle at 30% 30%, rgba(77, 208, 225, 0.15), transparent 60%);
+        }
+
+        .crest-mark::before,
+        .crest-mark::after {
+            content: '';
+            position: absolute;
+            background: var(--amber);
+            transform-origin: center;
+        }
+
+        .crest-mark::before {
+            width: 2px;
+            height: 14px;
+            top: 7px;
+            left: calc(50% - 1px);
+        }
+
+        .crest-mark::after {
+            width: 10px;
+            height: 2px;
+            top: calc(50% - 1px);
+            left: 50%;
+        }
+
+        .crest-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: var(--cream-dim);
+            line-height: 1.5;
+        }
+
+        .crest-text span {
+            color: var(--muted);
+        }
+
+        .masthead h1 {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-size: clamp(22px, 3vw, 30px);
+            font-weight: 500;
+            font-style: italic;
+            margin: 0;
+            text-align: center;
+            letter-spacing: -0.01em;
+            color: var(--cream);
+        }
+
+        .masthead h1 em {
+            color: var(--amber);
+            font-style: italic;
+        }
+
+        .meta {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--muted);
+            text-align: right;
+            line-height: 1.6;
+        }
+
+        .meta strong {
+            color: var(--cream-dim);
+            font-weight: 500;
+        }
+
+        /* ========== INTRO ========== */
+        .intro {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 48px;
+            margin-bottom: 56px;
+            padding-bottom: 40px;
+            border-bottom: 1px dashed var(--line);
+        }
+
+        .intro.about {
+            margin-top: 64px;
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+            border-top: 1px dashed var(--line);
+            padding-top: 40px;
+        }
+
+        .intro-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--amber);
+        }
+
+        .intro-label::before {
+            content: '§ ';
+            color: var(--muted);
+        }
+
+        .intro p {
+            margin: 0;
+            font-size: 18px;
+            line-height: 1.6;
+            color: var(--cream-dim);
+            font-weight: 400;
+        }
+
+        .intro p em {
+            color: var(--amber);
+            font-style: italic;
+        }
+
+        /* ========== SECTION HEADERS ========== */
+        .section-head {
+            display: flex;
+            align-items: baseline;
+            gap: 18px;
+            margin: 0 0 28px;
+        }
+
+        .section-num {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.15em;
+            color: var(--amber);
+            min-width: 32px;
+        }
+
+        .section-title {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-size: 26px;
+            font-weight: 500;
+            font-style: italic;
+            margin: 0;
+            color: var(--cream);
+        }
+
+        .section-rule {
+            flex: 1;
+            height: 1px;
+            background: var(--line);
+        }
+
+        /* ========== INPUT GRID ========== */
+        .inputs {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 40px;
+        }
+
+        @media (max-width: 880px) {
+            .inputs {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 520px) {
+            .inputs {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .node {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            padding: 22px 20px;
+            position: relative;
+            transition: border-color 0.3s ease;
+        }
+
+        .node:hover {
+            border-color: var(--line-strong);
+        }
+
+        .node.server {
+            border-color: var(--amber);
+            background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 100%);
+            box-shadow: 0 0 0 1px var(--amber-glow) inset;
+        }
+
+        .node-tag {
+            position: absolute;
+            top: -1px;
+            left: 20px;
+            background: var(--ink);
+            padding: 0 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--muted);
+            transform: translateY(-50%);
+        }
+
+        .node.server .node-tag {
+            color: var(--amber);
+        }
+
+        .node-name {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-size: 20px;
+            font-style: italic;
+            font-weight: 500;
+            margin: 4px 0 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: var(--cream);
+        }
+
+        .node-id {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            font-style: normal;
+            color: var(--muted);
+            letter-spacing: 0.1em;
+        }
+
+        /* Analog clock */
+        .clock {
+            width: 92px;
+            height: 92px;
+            margin: 0 auto 16px;
+            display: block;
+        }
+
+        .clock-face {
+            fill: var(--ink-2);
+            stroke: var(--line-strong);
+            stroke-width: 1;
+        }
+
+        .server .clock-face {
+            stroke: var(--amber);
+        }
+
+        .clock-tick {
+            stroke: var(--cream-dim);
+            stroke-width: 1;
+        }
+
+        .clock-tick.major {
+            stroke: var(--cream);
+            stroke-width: 1.4;
+        }
+
+        .clock-hand {
+            stroke: var(--cream);
+            stroke-linecap: round;
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform-origin: 50% 50%;
+        }
+
+        .hand-h {
+            stroke-width: 3;
+        }
+
+        .hand-m {
+            stroke-width: 2;
+        }
+
+        .hand-s {
+            stroke: var(--amber);
+            stroke-width: 1;
+        }
+
+        .clock-center {
+            fill: var(--amber);
+        }
+
+        .field {
+            display: block;
+            margin-top: 12px;
+        }
+
+        .field-label {
+            display: block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9.5px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        /* ========== CUSTOM TIME PICKER ========== */
+        .time-picker {
+            display: flex;
+            align-items: stretch;
+            justify-content: center;
+            width: 100%;
+            background: var(--ink);
+            border: 1px solid var(--line);
+            padding: 8px 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--cream);
+            letter-spacing: 0.06em;
+            transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+            cursor: text;
+            position: relative;
+        }
+
+        .time-picker:hover {
+            border-color: var(--line-strong);
+        }
+
+        .time-picker:focus-within {
+            border-color: var(--amber);
+            background: var(--ink-2);
+            box-shadow: 0 0 0 3px var(--amber-glow);
+        }
+
+        .time-seg {
+            width: 1.9em;
+            text-align: center;
+            background: transparent;
+            border: none;
+            color: inherit;
+            font: inherit;
+            padding: 4px 0;
+            outline: none;
+            border-radius: 2px;
+            transition: color 0.15s ease, background 0.15s ease;
+            caret-color: var(--amber);
+        }
+
+        .time-seg::-webkit-outer-spin-button,
+        .time-seg::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .time-seg:focus {
+            color: var(--amber);
+            background: rgba(77, 208, 225, 0.10);
+        }
+
+        .time-seg::selection {
+            background: var(--amber);
+            color: var(--ink);
+        }
+
+        .time-sep {
+            color: var(--muted);
+            user-select: none;
+            align-self: center;
+            padding: 0 1px;
+            transition: color 0.2s ease;
+            font-weight: 500;
+        }
+
+        .time-picker:focus-within .time-sep {
+            color: var(--cream-dim);
+        }
+
+        /* ========== EXECUTE BUTTON ========== */
+        .execute {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            margin: 0 0 48px;
+        }
+
+        .execute-line {
+            flex: 1;
+            height: 1px;
+            background: var(--line);
+        }
+
+        button.run {
+            background: var(--amber);
+            color: var(--ink);
+            border: none;
+            padding: 16px 32px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        button.run::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: var(--ink);
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.4;
+                transform: scale(0.8);
+            }
+        }
+
+        button.run:hover {
+            background: var(--cream);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px rgba(77, 208, 225, 0.25);
+        }
+
+        button.run:active {
+            transform: translateY(0);
+        }
+
+        .err-msg {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--rust);
+            letter-spacing: 0.08em;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .err-msg.show {
+            display: block;
+        }
+
+        /* ========== RESULTS ========== */
+        #results {
+            display: none;
+            animation: revealUp 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        #results.show {
+            display: block;
+        }
+
+        @keyframes revealUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Steps panel */
+        .steps {
+            margin-bottom: 56px;
+        }
+
+        .step {
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            gap: 32px;
+            padding: 28px 0;
+            border-bottom: 1px dashed var(--line);
+            opacity: 0;
+            animation: fadeStep 0.6s ease forwards;
+        }
+
+        .step:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .step:nth-child(2) {
+            animation-delay: 0.25s;
+        }
+
+        .step:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        .step:nth-child(4) {
+            animation-delay: 0.55s;
+        }
+
+        @keyframes fadeStep {
+            to {
+                opacity: 1;
+            }
+        }
+
+        .step-num {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-size: 48px;
+            font-style: italic;
+            font-weight: 400;
+            color: var(--amber);
+            line-height: 1;
+            letter-spacing: -0.02em;
+        }
+
+        .step-body h3 {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-size: 22px;
+            font-style: italic;
+            font-weight: 500;
+            margin: 0 0 12px;
+            color: var(--cream);
+        }
+
+        .step-body p {
+            margin: 0 0 14px;
+            color: var(--cream-dim);
+            font-size: 16px;
+            line-height: 1.65;
+        }
+
+        /* Calculation display */
+        .calc {
+            background: var(--ink-2);
+            border-left: 2px solid var(--amber);
+            padding: 16px 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            line-height: 1.9;
+            color: var(--cream-dim);
+            margin: 12px 0;
+            overflow-x: auto;
+        }
+
+        .calc .op {
+            color: var(--muted);
+        }
+
+        .calc .val {
+            color: var(--cream);
+        }
+
+        .calc .result {
+            color: var(--amber);
+            font-weight: 600;
+        }
+
+        /* Adjustments table */
+        .adjustments {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1px;
+            background: var(--line);
+            border: 1px solid var(--line);
+            margin-top: 12px;
+        }
+
+        .adj-row {
+            display: grid;
+            grid-template-columns: 1.4fr 1fr 1fr 80px 1fr;
+            background: var(--panel);
+            padding: 12px 16px;
+            align-items: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            gap: 12px;
+        }
+
+        .adj-row.head {
+            background: var(--ink-2);
+            font-size: 10px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .adj-row .name {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-style: italic;
+            font-size: 15px;
+            color: var(--cream);
+        }
+
+        .adj-row.head .name {
+            font-family: 'JetBrains Mono', monospace;
+            font-style: normal;
+            font-size: 10px;
+        }
+
+        .adj-row .arrow {
+            text-align: center;
+            color: var(--amber);
+            font-size: 16px;
+        }
+
+        .adj-val {
+            color: var(--cream-dim);
+        }
+
+        .adj-offset {
+            font-weight: 600;
+        }
+
+        .adj-offset.positive {
+            color: var(--sage);
+        }
+
+        .adj-offset.negative {
+            color: var(--rust);
+        }
+
+        .adj-offset.zero {
+            color: var(--muted);
+        }
+
+        @media (max-width: 760px) {
+            .adj-row {
+                grid-template-columns: 1fr;
+                gap: 4px;
+            }
+
+            .adj-row.head {
+                display: none;
+            }
+
+            .adj-row>* {
+                display: flex;
+                justify-content: space-between;
+            }
+
+            .adj-row>*::before {
+                content: attr(data-label);
+                color: var(--muted);
+                font-size: 10px;
+                text-transform: uppercase;
+                letter-spacing: 0.12em;
+            }
+        }
+
+        /* ========== TIMELINE ========== */
+        .timeline-section {
+            margin: 64px 0;
+        }
+
+        .timeline-wrap {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            padding: 32px 28px;
+            position: relative;
+        }
+
+        .timeline-wrap+.timeline-wrap {
+            margin-top: 24px;
+        }
+
+        .timeline-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .timeline-label.bad {
+            color: var(--rust);
+        }
+
+        .timeline-label.good {
+            color: var(--sage);
+        }
+
+        .timeline-title {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-size: 22px;
+            font-style: italic;
+            font-weight: 500;
+            margin: 0 0 6px;
+            color: var(--cream);
+        }
+
+        .timeline-desc {
+            font-size: 14px;
+            color: var(--muted);
+            margin: 0 0 28px;
+            line-height: 1.5;
+        }
+
+        .timeline-svg {
+            width: 100%;
+            height: auto;
+            display: block;
+            overflow: visible;
+        }
+
+        /* ========== QUEUE ========== */
+        .queue {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0;
+            margin-top: 24px;
+        }
+
+        @media (max-width: 620px) {
+            .queue {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .queue-slot {
+            background: var(--ink-2);
+            border: 1px solid var(--line);
+            padding: 20px 18px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .queue-slot+.queue-slot {
+            border-left: none;
+        }
+
+        @media (max-width: 620px) {
+            .queue-slot+.queue-slot {
+                border-left: 1px solid var(--line);
+                border-top: none;
+            }
+        }
+
+        .queue-pos {
+            position: absolute;
+            top: 12px;
+            right: 14px;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-style: italic;
+            font-size: 32px;
+            line-height: 1;
+            color: var(--muted-2);
+            opacity: 0.4;
+        }
+
+        .queue-name {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-style: italic;
+            font-size: 19px;
+            color: var(--cream);
+        }
+
+        .queue-meta {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .queue-time {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--amber);
+            margin-top: 2px;
+        }
+
+        /* Conclusion */
+        .conclusion {
+            margin-top: 56px;
+            padding: 32px 28px;
+            background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 100%);
+            border-top: 1px solid var(--amber);
+            position: relative;
+        }
+
+        .conclusion::before {
+            content: '';
+            position: absolute;
+            top: -1px;
+            left: 32px;
+            width: 60px;
+            height: 1px;
+            background: var(--cream);
+        }
+
+        .conclusion-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--amber);
+            margin-bottom: 14px;
+        }
+
+        .conclusion h3 {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-style: italic;
+            font-weight: 500;
+            font-size: 24px;
+            margin: 0 0 12px;
+            color: var(--cream);
+        }
+
+        .conclusion p {
+            margin: 0;
+            font-size: 16px;
+            line-height: 1.65;
+            color: var(--cream-dim);
+        }
+
+        .conclusion code {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--ink);
+            padding: 2px 8px;
+            font-size: 13px;
+            color: var(--amber);
+            border: 1px solid var(--line);
+        }
+
+        /* Footer */
+        footer {
+            margin-top: 80px;
+            padding-top: 28px;
+            border-top: 1px solid var(--line);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        footer .right {
+            text-align: right;
+        }
+
+        .footer-label {
+            color: var(--amber);
+            margin-right: 8px;
+            font-weight: 700;
+        }
+
+        /* ========== MOBILE RESPONSIVE ========== */
+        @media (max-width: 760px) {
+            .wrap {
+                padding: 28px 18px 56px;
+            }
+
+            .masthead {
+                grid-template-columns: 1fr;
+                gap: 16px;
+                text-align: center;
+                padding: 22px 0 20px;
+                margin-bottom: 32px;
+            }
+
+            .crest {
+                justify-content: center;
+            }
+
+            .masthead h1 {
+                font-size: clamp(20px, 6vw, 26px);
+            }
+
+            .meta {
+                text-align: center;
+            }
+
+            .section-head {
+                gap: 12px;
+                margin-bottom: 22px;
+            }
+
+            .section-title {
+                font-size: 20px;
+            }
+
+            .step {
+                grid-template-columns: 52px 1fr;
+                gap: 18px;
+                padding: 22px 0;
+            }
+
+            .step-num {
+                font-size: 34px;
+            }
+
+            .step-body h3 {
+                font-size: 18px;
+            }
+
+            .step-body p {
+                font-size: 15px;
+                line-height: 1.55;
+            }
+
+            .calc {
+                font-size: 12px;
+                padding: 12px 14px;
+                line-height: 1.7;
+            }
+
+            .timeline-wrap {
+                padding: 22px 18px;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .timeline-svg {
+                min-width: 560px;
+            }
+
+            .timeline-title {
+                font-size: 18px;
+            }
+
+            .timeline-desc {
+                font-size: 13px;
+            }
+
+            .conclusion {
+                padding: 24px 20px;
+            }
+
+            .conclusion h3 {
+                font-size: 20px;
+            }
+
+            .conclusion p {
+                font-size: 15px;
+                line-height: 1.55;
+            }
+
+            .conclusion code {
+                font-size: 12px;
+                padding: 1px 6px;
+                display: inline-block;
+                margin: 2px 0;
+            }
+
+            .execute {
+                gap: 12px;
+                margin: 0 0 36px;
+            }
+
+            .execute-line {
+                display: none;
+            }
+
+            button.run {
+                width: 100%;
+                padding: 14px 20px;
+                font-size: 11px;
+                justify-content: center;
+            }
+
+            footer {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+                margin-top: 56px;
+                padding-top: 22px;
+            }
+
+            footer .right {
+                text-align: center;
+            }
+
+            .intro.about {
+                grid-template-columns: 1fr;
+                gap: 14px;
+                margin-top: 48px;
+                padding-top: 32px;
+            }
+
+            .intro p {
+                font-size: 16px;
+                line-height: 1.55;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .wrap {
+                padding: 22px 14px 44px;
+            }
+
+            .masthead {
+                padding: 16px 0 14px;
+                margin-bottom: 24px;
+            }
+
+            .masthead h1 {
+                font-size: 20px;
+            }
+
+            .crest-mark {
+                width: 38px;
+                height: 38px;
+            }
+
+            .crest-mark::before {
+                height: 12px;
+                top: 6px;
+            }
+
+            .crest-mark::after {
+                width: 9px;
+            }
+
+            .crest-text {
+                font-size: 9px;
+            }
+
+            .node {
+                padding: 18px 16px;
+            }
+
+            .node-name {
+                font-size: 18px;
+            }
+
+            .clock {
+                width: 84px;
+                height: 84px;
+            }
+
+            .time-picker {
+                font-size: 16px;
+                padding: 7px 8px;
+            }
+
+            .time-seg {
+                width: 1.8em;
+            }
+
+            .step {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .step-num {
+                font-size: 26px;
+            }
+
+            .timeline-wrap {
+                padding: 20px 14px;
+            }
+
+            .queue-pos {
+                font-size: 28px;
+            }
+
+            .queue-slot {
+                padding: 18px 16px;
+            }
+
+            .queue-name {
+                font-size: 17px;
+            }
+
+            .conclusion {
+                padding: 22px 16px;
+            }
+
+            .section-num {
+                font-size: 10px;
+                min-width: 28px;
+            }
+
+            .section-title {
+                font-size: 18px;
+            }
+
+            footer {
+                font-size: 9px;
+                letter-spacing: 0.14em;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+
+        <!-- ==================== MASTHEAD ==================== -->
+        <header class="masthead">
+            <div class="crest">
+                <div class="crest-mark" aria-hidden="true"></div>
+                <div class="crest-text">
+                    UESPI &mdash; Parnaíba<br>
+                    <span>Bacharelado em Ciência da Computação</span>
+                </div>
+            </div>
+            <h1>Cronômetro <em>Distribuído</em></h1>
+            <div class="meta">
+                Sistemas Distribuídos<br>
+                <strong>2026.1</strong>
+            </div>
+        </header>
+
+        <!-- ==================== INPUTS ==================== -->
+        <section>
+            <div class="section-head">
+                <div class="section-num">01</div>
+                <h2 class="section-title">Configuração da rede</h2>
+                <div class="section-rule"></div>
+            </div>
+
+            <div class="inputs">
+                <!-- Server -->
+                <div class="node server" data-clock-id="S">
+                    <div class="node-tag">Servidor de Tempo</div>
+                    <div class="node-name">
+                        Servidor
+                        <span class="node-id">S</span>
+                    </div>
+                    <svg class="clock" viewBox="0 0 100 100" data-clock-svg="S"></svg>
+                    <label class="field">
+                        <span class="field-label">Hora Local</span>
+                        <input type="time" id="tServidor" step="1">
+                    </label>
+                </div>
+
+                <!-- Client 1 -->
+                <div class="node" data-clock-id="1">
+                    <div class="node-tag">Cliente</div>
+                    <div class="node-name">
+                        Cliente
+                        <span class="node-id">1</span>
+                    </div>
+                    <svg class="clock" viewBox="0 0 100 100" data-clock-svg="1"></svg>
+                    <label class="field">
+                        <span class="field-label">Hora Local</span>
+                        <input type="time" id="t1" step="1">
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Envio da Msg</span>
+                        <input type="time" id="e1" step="1">
+                    </label>
+                </div>
+
+                <!-- Client 2 -->
+                <div class="node" data-clock-id="2">
+                    <div class="node-tag">Cliente</div>
+                    <div class="node-name">
+                        Cliente
+                        <span class="node-id">2</span>
+                    </div>
+                    <svg class="clock" viewBox="0 0 100 100" data-clock-svg="2"></svg>
+                    <label class="field">
+                        <span class="field-label">Hora Local</span>
+                        <input type="time" id="t2" step="1">
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Envio da Msg</span>
+                        <input type="time" id="e2" step="1">
+                    </label>
+                </div>
+
+                <!-- Client 3 -->
+                <div class="node" data-clock-id="3">
+                    <div class="node-tag">Cliente</div>
+                    <div class="node-name">
+                        Cliente
+                        <span class="node-id">3</span>
+                    </div>
+                    <svg class="clock" viewBox="0 0 100 100" data-clock-svg="3"></svg>
+                    <label class="field">
+                        <span class="field-label">Hora Local</span>
+                        <input type="time" id="t3" step="1">
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Envio da Msg</span>
+                        <input type="time" id="e3" step="1">
+                    </label>
+                </div>
+            </div>
+
+            <div class="execute">
+                <div class="execute-line"></div>
+                <button class="run" onclick="simular()">Executar Sincronização</button>
+                <div class="execute-line"></div>
+            </div>
+            <div class="err-msg" id="errMsg">Verifique se todos os campos de hora estão preenchidos corretamente.</div>
+        </section>
+
+        <!-- ==================== RESULTS ==================== -->
+        <div id="results">
+
+            <!-- STEPS -->
+            <section class="steps">
+                <div class="section-head">
+                    <div class="section-num">02</div>
+                    <h2 class="section-title">Execução do algoritmo</h2>
+                    <div class="section-rule"></div>
+                </div>
+
+                <div class="step">
+                    <div class="step-num">i</div>
+                    <div class="step-body">
+                        <h3>Coleta de tempos</h3>
+                        <p>O Servidor de Tempo solicita, periodicamente, a hora local de cada máquina da rede. Cada
+                            cliente responde com seu próprio relógio físico — possivelmente impreciso.</p>
+                        <div class="calc" id="calcColeta"></div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-num">ii</div>
+                    <div class="step-body">
+                        <h3>Cálculo da Hora de Referência</h3>
+                        <p>O Servidor calcula a <em>média aritmética</em> de todos os relógios coletados — incluindo o
+                            seu próprio. Esse valor torna-se a <em>nova hora acordada</em> para toda a rede.</p>
+                        <div class="calc" id="calcMedia"></div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-num">iii</div>
+                    <div class="step-body">
+                        <h3>Envio dos ajustes</h3>
+                        <p>O Servidor calcula o <em>desvio</em> de cada máquina em relação à Hora de Referência e envia
+                            a cada uma a instrução de correção (positiva ou negativa) a ser aplicada localmente.</p>
+                        <div class="adjustments" id="adjTable"></div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-num">iv</div>
+                    <div class="step-body">
+                        <h3>Reordenação dos eventos</h3>
+                        <p>Aplicando os desvios sobre as <em>horas relatadas de envio</em>, o Servidor descobre a
+                            verdadeira ordem em que os clientes tentaram acessar o recurso compartilhado — restaurando o
+                            princípio de causa e efeito de <em>Lamport</em>.</p>
+                        <div class="calc" id="calcOrdenacao"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TIMELINE / COMPARISON -->
+            <section class="timeline-section">
+                <div class="section-head">
+                    <div class="section-num">03</div>
+                    <h2 class="section-title">Linha do tempo dos eventos</h2>
+                    <div class="section-rule"></div>
+                </div>
+
+                <div class="timeline-wrap">
+                    <div class="timeline-label bad">Cenário A &middot; Sem sincronização</div>
+                    <h3 class="timeline-title">O servidor confia cegamente em cada relógio</h3>
+                    <p class="timeline-desc">Processos cujos relógios estão atrasados conseguem "furar a fila"
+                        injustamente, violando a relação <em>acontece-antes</em>.</p>
+                    <svg class="timeline-svg" id="timelineBad" viewBox="0 0 800 180"></svg>
+                    <div class="queue" id="queueBad"></div>
+                </div>
+
+                <div class="timeline-wrap">
+                    <div class="timeline-label good">Cenário B &middot; Com sincronização (Berkeley)</div>
+                    <h3 class="timeline-title">Os horários são corrigidos pela Hora de Referência</h3>
+                    <p class="timeline-desc">Os desvios calculados são aplicados às horas de envio, revelando a
+                        <em>ordem real</em> em que cada cliente solicitou o recurso.
+                    </p>
+                    <svg class="timeline-svg" id="timelineGood" viewBox="0 0 800 180"></svg>
+                    <div class="queue" id="queueGood"></div>
+                </div>
+            </section>
+
+            <!-- CONCLUSION -->
+            <div class="conclusion">
+                <div class="conclusion-tag">Conclusão</div>
+                <h3 id="conclusionTitle"></h3>
+                <p id="conclusionText"></p>
+            </div>
+
+        </div>
+
+        <!-- ==================== SOBRE ==================== -->
+        <section class="intro about">
+            <div>
+                <div class="intro-label">Sobre</div>
+            </div>
+            <p>
+                Simulação interativa do <em>Algoritmo de Berkeley</em> para sincronização de <em>relógios físicos</em>
+                em sistemas distribuídos. A partir de uma <em>Hora de Referência</em> calculada pelo servidor, é
+                possível reordenar eventos relatados por máquinas com relógios divergentes — preservando a relação
+                <em>"acontece-antes"</em> de Lamport na alocação de um recurso compartilhado entre processos
+                concorrentes.
+            </p>
+        </section>
+
+        <!-- ==================== FOOTER ==================== -->
+        <footer>
+            <div><span class="footer-label">Autores</span> Matheus Araújo Carvalho &middot; Arthur Dutra Costa Lima</div>
+            <div class="right"><span class="footer-label">Orientador</span> Prof. Átila Rabelo Lopes &middot; UESPI</div>
+        </footer>
+
+    </div>
+
+    <script>
+        // ============================================================
+        // TIME UTILITIES
+        // ============================================================
+        function timeToSeconds(timeStr) {
+            if (!timeStr) return null;
+            const parts = timeStr.split(':').map(Number);
+            if (parts.some(isNaN)) return null;
+            const [h, m, s = 0] = parts;
+            return (h * 3600) + (m * 60) + s;
+        }
+
+        function secondsToTime(totalSeconds) {
+            totalSeconds = Math.round(totalSeconds);
+            const normalized = ((totalSeconds % 86400) + 86400) % 86400;
+            const h = Math.floor(normalized / 3600).toString().padStart(2, '0');
+            const m = Math.floor((normalized % 3600) / 60).toString().padStart(2, '0');
+            const s = (normalized % 60).toString().padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
+
+        function formatDuration(seconds) {
+            const abs = Math.abs(Math.round(seconds));
+            const m = Math.floor(abs / 60);
+            const s = abs % 60;
+            const sign = seconds > 0 ? '+' : (seconds < 0 ? '−' : '±');
+            if (m === 0) return `${sign}${s}s`;
+            if (s === 0) return `${sign}${m}min`;
+            return `${sign}${m}min ${s}s`;
+        }
+
+        // ============================================================
+        // ANALOG CLOCK RENDERER
+        // ============================================================
+        function renderClock(svgEl, timeStr) {
+            const seconds = timeToSeconds(timeStr) || 0;
+            const h = Math.floor(seconds / 3600) % 12;
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = seconds % 60;
+
+            const hAngle = (h * 30) + (m * 0.5);
+            const mAngle = m * 6;
+            const sAngle = s * 6;
+
+            // Build clock face
+            let ticks = '';
+            for (let i = 0; i < 12; i++) {
+                const angle = (i * 30) * Math.PI / 180;
+                const isMajor = i % 3 === 0;
+                const r1 = isMajor ? 38 : 41;
+                const r2 = 45;
+                const x1 = 50 + r1 * Math.sin(angle);
+                const y1 = 50 - r1 * Math.cos(angle);
+                const x2 = 50 + r2 * Math.sin(angle);
+                const y2 = 50 - r2 * Math.cos(angle);
+                ticks += `<line class="clock-tick ${isMajor ? 'major' : ''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+            }
+
+            svgEl.innerHTML = `
+                <circle class="clock-face" cx="50" cy="50" r="47"/>
+                ${ticks}
+                <line class="clock-hand hand-h" x1="50" y1="50" x2="50" y2="28" style="transform: rotate(${hAngle}deg)"/>
+                <line class="clock-hand hand-m" x1="50" y1="50" x2="50" y2="18" style="transform: rotate(${mAngle}deg)"/>
+                <line class="clock-hand hand-s" x1="50" y1="50" x2="50" y2="15" style="transform: rotate(${sAngle}deg)"/>
+                <circle class="clock-center" cx="50" cy="50" r="2.5"/>
+            `;
+        }
+
+        function updateAllClocks() {
+            renderClock(document.querySelector('[data-clock-svg="S"]'), document.getElementById('tServidor').value);
+            renderClock(document.querySelector('[data-clock-svg="1"]'), document.getElementById('t1').value);
+            renderClock(document.querySelector('[data-clock-svg="2"]'), document.getElementById('t2').value);
+            renderClock(document.querySelector('[data-clock-svg="3"]'), document.getElementById('t3').value);
+        }
+
+        // ============================================================
+        // INITIALIZE WITH CURRENT SYSTEM TIME
+        // ============================================================
+        // Server starts at "now"; clients have offsets to keep the demo
+        // pedagogically meaningful out-of-the-box. User can edit freely.
+        function initWithCurrentTime() {
+            const now = new Date();
+            const baseSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+            const offsets = {
+                tServidor: 0,
+                t1: -5 * 60, e1: -4 * 60,
+                t2: +5 * 60, e2: +3 * 60,
+                t3: -2 * 60, e3: -1 * 60,
+            };
+            for (const [id, off] of Object.entries(offsets)) {
+                document.getElementById(id).value = secondsToTime(baseSec + off);
+            }
+        }
+        initWithCurrentTime();
+
+        // ============================================================
+        // CUSTOM SEGMENTED TIME PICKER
+        // ============================================================
+        // Replaces native <input type="time"> with an editorial-style
+        // HH : MM : SS widget. Keeps the original input (as hidden) so
+        // existing `.value` reads and `input` listeners keep working.
+        function attachTimePicker(input) {
+            const pad = v => String(v).padStart(2, '0');
+            const parse = v => {
+                const [h = '00', m = '00', s = '00'] = (v || '00:00:00').split(':');
+                return [h, m, s].map(x => pad(parseInt(x, 10) || 0));
+            };
+
+            const wrap = document.createElement('div');
+            wrap.className = 'time-picker';
+
+            const makeSeg = (val, max, aria) => {
+                const el = document.createElement('input');
+                el.type = 'text';
+                el.inputMode = 'numeric';
+                el.maxLength = 2;
+                el.className = 'time-seg';
+                el.value = val;
+                el.dataset.max = max;
+                el.setAttribute('aria-label', aria);
+                return el;
+            };
+            const makeSep = () => {
+                const s = document.createElement('span');
+                s.className = 'time-sep';
+                s.textContent = ':';
+                return s;
+            };
+
+            const [h, m, s] = parse(input.value);
+            const segH = makeSeg(h, 23, 'horas');
+            const segM = makeSeg(m, 59, 'minutos');
+            const segS = makeSeg(s, 59, 'segundos');
+            wrap.append(segH, makeSep(), segM, makeSep(), segS);
+
+            input.type = 'hidden';
+            input.after(wrap);
+
+            const segs = [segH, segM, segS];
+            const clamp = (seg, v) => {
+                const max = parseInt(seg.dataset.max, 10);
+                if (isNaN(v)) return 0;
+                if (v < 0) return max;
+                if (v > max) return 0;
+                return v;
+            };
+            const sync = () => {
+                input.value = `${segH.value || '00'}:${segM.value || '00'}:${segS.value || '00'}`;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            };
+            const normalize = seg => {
+                const v = clamp(seg, parseInt(seg.value.replace(/\D/g, ''), 10));
+                seg.value = pad(v);
+            };
+
+            // Click anywhere on wrapper (between/around segments) focuses next available
+            wrap.addEventListener('mousedown', e => {
+                if (e.target === wrap || e.target.classList.contains('time-sep')) {
+                    e.preventDefault();
+                    (document.activeElement && segs.includes(document.activeElement) ? document.activeElement : segH).focus();
+                }
+            });
+
+            segs.forEach((seg, idx) => {
+                seg.addEventListener('focus', () => setTimeout(() => seg.select(), 0));
+                seg.addEventListener('input', () => {
+                    const cleaned = seg.value.replace(/\D/g, '').slice(0, 2);
+                    if (cleaned !== seg.value) seg.value = cleaned;
+                    if (seg.value.length === 2 && idx < segs.length - 1) {
+                        segs[idx + 1].focus();
+                    }
+                    sync();
+                });
+                seg.addEventListener('blur', () => { normalize(seg); sync(); });
+                seg.addEventListener('keydown', e => {
+                    const cur = parseInt(seg.value, 10) || 0;
+                    if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        seg.value = pad(clamp(seg, cur + 1));
+                        seg.select(); sync();
+                    } else if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        seg.value = pad(clamp(seg, cur - 1));
+                        seg.select(); sync();
+                    } else if (e.key === 'ArrowRight' && seg.selectionStart === seg.value.length && idx < segs.length - 1) {
+                        e.preventDefault();
+                        segs[idx + 1].focus();
+                    } else if (e.key === 'ArrowLeft' && seg.selectionStart === 0 && idx > 0) {
+                        e.preventDefault();
+                        const prev = segs[idx - 1];
+                        prev.focus();
+                        prev.setSelectionRange(prev.value.length, prev.value.length);
+                    } else if (e.key === 'Backspace' && seg.value === '' && idx > 0) {
+                        e.preventDefault();
+                        segs[idx - 1].focus();
+                    }
+                });
+                seg.addEventListener('wheel', e => {
+                    if (document.activeElement !== seg) return;
+                    e.preventDefault();
+                    const cur = parseInt(seg.value, 10) || 0;
+                    seg.value = pad(clamp(seg, cur + (e.deltaY < 0 ? 1 : -1)));
+                    sync();
+                }, { passive: false });
+            });
+        }
+
+        ['tServidor', 't1', 'e1', 't2', 'e2', 't3', 'e3'].forEach(id => {
+            attachTimePicker(document.getElementById(id));
+        });
+
+        // Bind live clock updates
+        ['tServidor', 't1', 't2', 't3'].forEach(id => {
+            document.getElementById(id).addEventListener('input', updateAllClocks);
+        });
+        updateAllClocks();
+
+        // ============================================================
+        // TIMELINE SVG RENDERER
+        // ============================================================
+        function renderTimeline(svgId, events) {
+            const svg = document.getElementById(svgId);
+            const W = 800, H = 180;
+            const padL = 50, padR = 50, padT = 30, padB = 60;
+            const lineY = 90;
+
+            // Determine time range
+            const times = events.map(e => e.time);
+            const minT = Math.min(...times);
+            const maxT = Math.max(...times);
+            const range = Math.max(maxT - minT, 60); // at least 1 min span
+            const startT = minT - range * 0.1;
+            const endT = maxT + range * 0.1;
+            const totalRange = endT - startT;
+
+            const xOf = t => padL + ((t - startT) / totalRange) * (W - padL - padR);
+
+            let html = '';
+
+            // Main axis line
+            html += `<line x1="${padL}" y1="${lineY}" x2="${W - padR}" y2="${lineY}" stroke="#2f4a6b" stroke-width="1.2"/>`;
+
+            // Tick marks at start/end
+            html += `<line x1="${padL}" y1="${lineY - 6}" x2="${padL}" y2="${lineY + 6}" stroke="#6a82a0" stroke-width="1"/>`;
+            html += `<line x1="${W - padR}" y1="${lineY - 6}" x2="${W - padR}" y2="${lineY + 6}" stroke="#6a82a0" stroke-width="1"/>`;
+            html += `<text x="${padL}" y="${lineY + 24}" fill="#6a82a0" font-family="JetBrains Mono" font-size="10" text-anchor="start" letter-spacing="1">${secondsToTime(startT)}</text>`;
+            html += `<text x="${W - padR}" y="${lineY + 24}" fill="#6a82a0" font-family="JetBrains Mono" font-size="10" text-anchor="end" letter-spacing="1">${secondsToTime(endT)}</text>`;
+
+            // Sort by time for order numbering
+            const sorted = [...events].sort((a, b) => a.time - b.time);
+            sorted.forEach((e, i) => e.order = i + 1);
+
+            // Draw events
+            events.forEach((e, idx) => {
+                const x = xOf(e.time);
+                // Stagger labels above/below to prevent overlap
+                const above = idx % 2 === 0;
+                const labelY = above ? lineY - 32 : lineY + 42;
+                const lineEndY = above ? lineY - 12 : lineY + 12;
+
+                // Vertical connector
+                html += `<line x1="${x}" y1="${lineY}" x2="${x}" y2="${lineEndY}" stroke="#2f4a6b" stroke-width="1" stroke-dasharray="2,3"/>`;
+
+                // Dot on axis
+                html += `<circle cx="${x}" cy="${lineY}" r="5" fill="#4dd0e1" stroke="#08101a" stroke-width="2"/>`;
+                html += `<circle cx="${x}" cy="${lineY}" r="9" fill="none" stroke="#4dd0e1" stroke-width="1" opacity="0.3"/>`;
+
+                // Label
+                html += `<g transform="translate(${x}, ${labelY})">`;
+                html += `<text text-anchor="middle" fill="#e8f1ff" font-family="Inter, system-ui, sans-serif" font-style="italic" font-size="14" font-weight="600">${e.name}</text>`;
+                html += `<text text-anchor="middle" y="14" fill="#6a82a0" font-family="JetBrains Mono" font-size="10" letter-spacing="0.5">${secondsToTime(e.time)}</text>`;
+                html += `</g>`;
+
+                // Order number on axis
+                html += `<text x="${x}" y="${lineY + 4}" fill="#08101a" font-family="JetBrains Mono" font-size="9" font-weight="700" text-anchor="middle">${e.order}</text>`;
+            });
+
+            // Add "happens-before" arrows between consecutive sorted events
+            for (let i = 0; i < sorted.length - 1; i++) {
+                const x1 = xOf(sorted[i].time);
+                const x2 = xOf(sorted[i + 1].time);
+                const midY = lineY - 60;
+                const midX = (x1 + x2) / 2;
+                // small arc above
+                const arcRadius = (x2 - x1) / 2;
+                html += `<path d="M ${x1 + 10},${lineY - 14} Q ${midX},${midY} ${x2 - 10},${lineY - 14}" fill="none" stroke="#6ee7b7" stroke-width="1" opacity="0.35" stroke-dasharray="3,3"/>`;
+            }
+
+            // Caption
+            html += `<text x="${W / 2}" y="${H - 8}" fill="#4d6280" font-family="JetBrains Mono" font-size="9" text-anchor="middle" letter-spacing="2" text-transform="uppercase">EIXO TEMPORAL → CRESCENTE</text>`;
+
+            svg.innerHTML = html;
+        }
+
+        // ============================================================
+        // MAIN SIMULATION
+        // ============================================================
+        function simular() {
+            // 1. Collect inputs with validation
+            const inputs = {
+                S: document.getElementById('tServidor').value,
+                C1_local: document.getElementById('t1').value,
+                C1_envio: document.getElementById('e1').value,
+                C2_local: document.getElementById('t2').value,
+                C2_envio: document.getElementById('e2').value,
+                C3_local: document.getElementById('t3').value,
+                C3_envio: document.getElementById('e3').value,
+            };
+
+            const errEl = document.getElementById('errMsg');
+            for (const k in inputs) {
+                if (!inputs[k]) {
+                    errEl.classList.add('show');
+                    return;
+                }
+            }
+            errEl.classList.remove('show');
+
+            const secS = timeToSeconds(inputs.S);
+            const clientes = [
+                { id: '1', nome: 'Cliente 1', local: timeToSeconds(inputs.C1_local), envio: timeToSeconds(inputs.C1_envio) },
+                { id: '2', nome: 'Cliente 2', local: timeToSeconds(inputs.C2_local), envio: timeToSeconds(inputs.C2_envio) },
+                { id: '3', nome: 'Cliente 3', local: timeToSeconds(inputs.C3_local), envio: timeToSeconds(inputs.C3_envio) },
+            ];
+
+            // 2. Logical clock (Berkeley average)
+            const soma = secS + clientes[0].local + clientes[1].local + clientes[2].local;
+            const media = soma / 4;
+            const mediaFmt = secondsToTime(media);
+
+            // 3. Adjustments
+            const ajusteS = media - secS;
+            clientes.forEach(c => {
+                c.ajuste = media - c.local;
+                c.envioSync = c.envio + c.ajuste;
+            });
+
+            // 4. Sort queues
+            const semSync = [...clientes].sort((a, b) => a.envio - b.envio);
+            const comSync = [...clientes].sort((a, b) => a.envioSync - b.envioSync);
+
+            // ----- STEP I: Collection -----
+            document.getElementById('calcColeta').innerHTML = `
+                <span class="op">// horários coletados</span><br>
+                <span class="val">Servidor S</span>  <span class="op">=</span>  <span class="result">${secondsToTime(secS)}</span><br>
+                <span class="val">Cliente 1</span>  <span class="op">=</span>  <span class="result">${secondsToTime(clientes[0].local)}</span><br>
+                <span class="val">Cliente 2</span>  <span class="op">=</span>  <span class="result">${secondsToTime(clientes[1].local)}</span><br>
+                <span class="val">Cliente 3</span>  <span class="op">=</span>  <span class="result">${secondsToTime(clientes[2].local)}</span>
+            `;
+
+            // ----- STEP II: Average -----
+            document.getElementById('calcMedia').innerHTML = `
+                <span class="op">HR = (</span><span class="val">${secondsToTime(secS)}</span> <span class="op">+</span> <span class="val">${secondsToTime(clientes[0].local)}</span> <span class="op">+</span> <span class="val">${secondsToTime(clientes[1].local)}</span> <span class="op">+</span> <span class="val">${secondsToTime(clientes[2].local)}</span><span class="op">) / 4</span><br>
+                <span class="op">HR = ${secondsToTime(soma)} / 4</span><br>
+                <span class="op">HR = </span><span class="result">${mediaFmt}</span>  <span class="op">// hora de referência acordada da rede</span>
+            `;
+
+            // ----- STEP III: Adjustments table -----
+            const offsetClass = v => v > 0 ? 'positive' : (v < 0 ? 'negative' : 'zero');
+            const renderAdjRow = (name, local, sync, offset) => `
+                <div class="adj-row">
+                    <div class="name" data-label="Nó">${name}</div>
+                    <div class="adj-val" data-label="Hora local">${secondsToTime(local)}</div>
+                    <div class="arrow" data-label="">→</div>
+                    <div class="adj-offset ${offsetClass(offset)}" data-label="Ajuste">${formatDuration(offset)}</div>
+                    <div class="adj-val" data-label="Hora sincronizada">${secondsToTime(sync)}</div>
+                </div>
+            `;
+            document.getElementById('adjTable').innerHTML = `
+                <div class="adj-row head">
+                    <div class="name">Nó</div>
+                    <div>Hora Local</div>
+                    <div class="arrow"></div>
+                    <div>Ajuste</div>
+                    <div>Hora Sincronizada</div>
+                </div>
+                ${renderAdjRow('Servidor S', secS, secS + ajusteS, ajusteS)}
+                ${renderAdjRow('Cliente 1', clientes[0].local, clientes[0].local + clientes[0].ajuste, clientes[0].ajuste)}
+                ${renderAdjRow('Cliente 2', clientes[1].local, clientes[1].local + clientes[1].ajuste, clientes[1].ajuste)}
+                ${renderAdjRow('Cliente 3', clientes[2].local, clientes[2].local + clientes[2].ajuste, clientes[2].ajuste)}
+            `;
+
+            // ----- STEP IV: Reorder -----
+            let calcOrd = '<span class="op">// aplicando ajuste a cada hora de envio relatada</span><br>';
+            clientes.forEach(c => {
+                calcOrd += `<span class="val">${c.nome}:</span>  ${secondsToTime(c.envio)} <span class="op">+ (</span>${formatDuration(c.ajuste)}<span class="op">)</span>  <span class="op">→</span>  <span class="result">${secondsToTime(c.envioSync)}</span><br>`;
+            });
+            document.getElementById('calcOrdenacao').innerHTML = calcOrd;
+
+            // ----- TIMELINE: Without sync -----
+            renderTimeline('timelineBad', clientes.map(c => ({
+                name: c.nome,
+                time: c.envio
+            })));
+
+            // Queue without sync
+            document.getElementById('queueBad').innerHTML = semSync.map((c, i) => `
+                <div class="queue-slot">
+                    <div class="queue-pos">${i + 1}º</div>
+                    <div class="queue-meta">Posição na fila</div>
+                    <div class="queue-name">${c.nome}</div>
+                    <div class="queue-time">${secondsToTime(c.envio)}</div>
+                </div>
+            `).join('');
+
+            // ----- TIMELINE: With sync -----
+            renderTimeline('timelineGood', clientes.map(c => ({
+                name: c.nome,
+                time: c.envioSync
+            })));
+
+            // Queue with sync
+            document.getElementById('queueGood').innerHTML = comSync.map((c, i) => `
+                <div class="queue-slot">
+                    <div class="queue-pos">${i + 1}º</div>
+                    <div class="queue-meta">Posição na fila</div>
+                    <div class="queue-name">${c.nome}</div>
+                    <div class="queue-time">${secondsToTime(c.envioSync)}</div>
+                </div>
+            `).join('');
+
+            // ----- CONCLUSION -----
+            const diferentes = JSON.stringify(semSync.map(c => c.id)) !== JSON.stringify(comSync.map(c => c.id));
+            const concEl = document.getElementById('conclusionTitle');
+            const concTxt = document.getElementById('conclusionText');
+            const seqSem = semSync.map(c => c.nome).join(' → ');
+            const seqCom = comSync.map(c => c.nome).join(' → ');
+
+            if (diferentes) {
+                concEl.innerHTML = 'A sincronização <em>alterou</em> a ordem de acesso ao recurso.';
+                concTxt.innerHTML = `Sem o Algoritmo de Berkeley, o servidor processaria <code>${seqSem}</code>. Após sincronizar pela Hora de Referência <code>${mediaFmt}</code>, a ordem real respeitando a relação acontece-antes de Lamport é <code>${seqCom}</code>. A diferença demonstra como relógios físicos divergentes podem violar a causalidade em sistemas distribuídos.`;
+            } else {
+                concEl.innerHTML = 'A sincronização <em>confirmou</em> a ordem original.';
+                concTxt.innerHTML = `Coincidentemente, mesmo com relógios físicos divergentes, a ordem relatada e a ordem sincronizada são idênticas: <code>${seqCom}</code>. Isto não invalida o algoritmo — em geral, sem a correção pela Hora de Referência <code>${mediaFmt}</code>, não há garantia de que a causalidade seja preservada. Experimente alterar as horas locais para observar o efeito.`;
+            }
+
+            // Show results
+            const res = document.getElementById('results');
+            res.classList.add('show');
+            setTimeout(() => res.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+        }
+    </script>
+</body>
+
+</html>
